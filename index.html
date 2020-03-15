@@ -1,0 +1,31 @@
+<html>
+    <head>
+        <title>HTML SyncPlayer</title>
+        <link href="https://unpkg.com/plyr@3/dist/plyr.css" rel="stylesheet"></link>
+        <style>
+// #player--container {
+//     flex: 0 1 auto;
+// }
+// body {
+//     display: flex;
+//     flex-direction: column;
+// }
+#player--container {
+    height: 80%;
+}
+        </style>
+    </head>
+    <body>
+        <!--<h2 id="header">&lt;No File Selected&gt;</h2>-->
+        <!--<label for="filename">Choose subtitle and video files...</label>-->
+        <input id="filename" name="filename" type="file" />
+        <div id="player--container">
+            <video id="player" controls></video>
+        </div>
+        <script src="https://cdn.polyfill.io/v2/polyfill.min.js?features=es6,Array.prototype.includes,CustomEvent,Object.entries,Object.values,URL"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.3.0/socket.io.js"></script>
+        <script src="https://unpkg.com/plyr@3"></script>
+        <script src="https://cdn.jsdelivr.net/npm/lodash@4.17.15/lodash.min.js"></script>
+        <script src="/script.js"></script>
+    </body>
+</html>

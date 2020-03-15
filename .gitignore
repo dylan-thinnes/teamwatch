@@ -1,0 +1,5 @@
+subs/*
+mp4/*
+mkv/*
+package-lock.json
+node_modules/*
