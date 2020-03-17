@@ -3,3 +3,7 @@ mp4/*
 mkv/*
 package-lock.json
 node_modules/*
+*.swp
+*.swo
+bundle.js
+script-old.js
