@@ -8,6 +8,14 @@ var nick = document.getElementById("nick");
 var videoFileDisplay = document.getElementById("videoFileDisplay");
 var subtitleFileDisplay = document.getElementById("subtitleFileDisplay");
 
+// Initialize timesync primitives
+var ts = timesync.create({
+    server: '/timesync',
+    interval: 1000
+});
+
+var now = () => ts.now();
+
 // Initialize the player
 var playerjs = new Plyr('#player', {captions: {update: true, active: true}});
 window.playerjs;
@@ -101,7 +109,7 @@ var trigger = (type, data, channel) => {
     conn.emit(channel, {
         ...data, id, type,
         seektime: playerjs.currentTime,
-        senttime: Date.now() / 1000,
+        senttime: now() / 1000,
     });
 }
 
@@ -152,7 +160,7 @@ setPlayerListener("seeked", e => {
     }
     trigger("seeked", {
         seektime: playerjs.currentTime,
-        senttime: Date.now() / 1000,
+        senttime: now() / 1000,
         willBePlaying: playerjs.playing
     });
 });
@@ -176,7 +184,7 @@ var seenEvents = new Set();
 conn.on('heartreply', e => {
     // console.log('heartreply', e);
     let hearts = Object.values(e).filter(x => x != null && typeof x == 'object');
-    let curr = Date.now() / 1000;
+    let curr = now() / 1000;
     for (heart of hearts) {
         let syncedtime = heart.senttime - heart.currentTime;
         if (heart.isPlaying == false) {
@@ -198,7 +206,7 @@ conn.on('heartreply', e => {
 });
 
 conn.on('countdown', e => {
-    let curr = Date.now();
+    let curr = now();
     countdownActive = true;
     if (e.target > curr) {
         let diff = e.target - curr;
@@ -211,7 +219,7 @@ conn.on('countdown', e => {
         }, diff);
     } else {
         var adjustedTime = e.targetSeektime;
-        adjustedTime += (Date.now() / 1000) - e.target / 1000;
+        adjustedTime += (now() / 1000) - e.target / 1000;
         abortNext.seeked = true;
         playerjs.currentTime = adjustedTime;
         abortNext.play = true;
@@ -231,7 +239,7 @@ conn.on('controlsdown', e => {
 
     var adjustedTime = e.seektime;
     if (e.willBePlaying) {
-        adjustedTime += (Date.now() / 1000) - e.senttime;
+        adjustedTime += (now() / 1000) - e.senttime;
     }
     console.log(`Seeking to adjusted time: ${adjustedTime}`)
 

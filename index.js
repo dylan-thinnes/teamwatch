@@ -1,10 +1,18 @@
-var app = require('express')();
+var express = require('express');
+var app = express();
 var http = require('http').createServer(app);
-var io = require('socket.io')(http);
+var timesyncServer = require('timesync/server');
 
-// app.get('/', function(req, res){
-//     res.sendFile(__dirname + '/index.html');
-// });
+app.use('/', express.static(__dirname));
+
+var io = require('socket.io')(http, { path: '/socket.io' });
+
+app.use('/timesync', timesyncServer.requestHandler);
+
+app.listen(8080);
+http.listen(3000, () => {
+    console.log("listening on *:3000");
+});
 
 var seenEvents = new Set();
 var heart = {};
@@ -51,8 +59,4 @@ io.on('connection', function(socket){
             targetSeektime: e.targetSeektime,
         });
     });
-});
-
-http.listen(3000, function(){
-    console.log('listening on *:3000');
 });
