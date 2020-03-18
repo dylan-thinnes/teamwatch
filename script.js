@@ -123,10 +123,16 @@ var setPlayerListener = (event, handler, nonotify) => {
     });
 }
 
+let countdownActive = false;
+
 setPlayerListener("play", e => {
-    trigger("play", {
-        willBePlaying: true
-    });
+    // trigger("play", {
+    //     willBePlaying: true
+    // });
+    if (countdownActive == true) return;
+    trigger('countdown', {
+        targetSeektime: playerjs.currentTime,
+    }, 'countdown');
 });
 
 setPlayerListener("pause", e => {
@@ -164,6 +170,7 @@ setInterval(_ => {
 var mean = xs => xs.reduce((x,y) => x + y, 0) / xs.length
 
 var seenEvents = new Set();
+
 conn.on('heartreply', e => {
     // console.log('heartreply', e);
     let hearts = Object.values(e).filter(x => x != null && typeof x == 'object');
@@ -187,6 +194,30 @@ conn.on('heartreply', e => {
         heartbeat.innerHTML += `<tr><td>${heart.nick || heart.uid}</td><td>${Math.round((delta + Number.EPSILON) * 100) / 100}</td></tr>`;
     }
 });
+
+conn.on('countdown', e => {
+    let curr = Date.now();
+    countdownActive = true;
+    if (e.target > curr) {
+        let diff = e.target - curr;
+        abortNext.seeked = true;
+        playerjs.currentTime = e.targetSeektime;
+        setTimeout(() => {
+            abortNext.play = true;
+            playerjs.play();
+            countdownActive = false;
+        }, diff);
+    } else {
+        var adjustedTime = e.targetSeektime;
+        adjustedTime += (Date.now() / 1000) - e.target / 1000;
+        abortNext.seeked = true;
+        playerjs.currentTime = adjustedTime;
+        abortNext.play = true;
+        playerjs.play();
+        countdownActive = false;
+    }
+});
+
 conn.on('controlsdown', e => {
     console.log("Event", e);
 

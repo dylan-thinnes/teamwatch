@@ -43,6 +43,14 @@ io.on('connection', function(socket){
     socket.on('disconnect', e => {
         delete heart[uid];
     });
+
+    socket.on('countdown', e => {
+        let curr = Date.now();
+        io.emit('countdown', {
+            target: curr + 3000,
+            targetSeektime: e.targetSeektime,
+        });
+    });
 });
 
 http.listen(3000, function(){
