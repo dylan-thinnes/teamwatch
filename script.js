@@ -91,7 +91,7 @@ var updateFromFiles = files => {
 filename.addEventListener("change", e => updateFromFiles(e.target.files || []));
 
 // Initialize connection
-var conn = io("http://localhost:3000");
+var conn = io(`http://${window.location.hostname}:3000`);
 
 // Trigger a controls event on the connection
 var trigger = (type, data, channel) => {
@@ -133,6 +133,8 @@ setPlayerListener("play", e => {
     trigger('countdown', {
         targetSeektime: playerjs.currentTime,
     }, 'countdown');
+    abortNext.pause = true;
+    playerjs.pause();
 });
 
 setPlayerListener("pause", e => {
