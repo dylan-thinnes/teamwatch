@@ -19,15 +19,29 @@ io.on('connection', function(socket){
         if (e.time != null && seenEvents.has(e.time)) return;
         seenEvents.add(e.id);
         seenEvents.add(e.time);
-        socket.broadcast.emit('controlsdown', e);
+        setTimeout(() => {
+            socket.broadcast.emit('controlsdown', e);
+        }, 1000);
     });
 
     socket.on('heartbeat', e => {
         heart['you'] = uid;
-        heart[uid] = e.senttime - e.currentTime;
+        heart[uid] = { ...e, uid };
+        let curr = Date.now() / 1000;
+        for (index in heart) {
+            let heartbeat = heart[index];
+            if (heartbeat == null || typeof heartbeat != 'object') continue;
+            if (heartbeat.senttime < curr - 10) {
+                delete heart[index];
+            }
+        }
         heart.id = Math.random();
         socket.emit('heartreply', heart);
         console.log('heartreply', heart);
+    });
+
+    socket.on('disconnect', e => {
+        delete heart[uid];
     });
 });
 

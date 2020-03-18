@@ -3,6 +3,10 @@ var header = document.getElementById("header");
 var filename = document.getElementById("filename");
 var subs = document.getElementById("subs");
 var player = document.getElementById("player");
+var heartbeat = document.getElementById("heartbeat--table");
+var nick = document.getElementById("nick");
+var videoFileDisplay = document.getElementById("videoFileDisplay");
+var subtitleFileDisplay = document.getElementById("subtitleFileDisplay");
 
 // Initialize the player
 var playerjs = new Plyr('#player', {captions: {update: true, active: true}});
@@ -29,7 +33,7 @@ var genVideoSource = file => {
         src = file;
     }
 
-    return { src };
+    return { src, name: file.name };
 }
 
 var genTrackSource = file => {
@@ -39,6 +43,7 @@ var genTrackSource = file => {
         srclang: "en",
         label: "English",
         default: true,
+        name: file.name,
     }
 
     return track;
@@ -54,21 +59,33 @@ var updateFromFiles = files => {
         var mime = file.type;
         var [type, subtype] = mime.split("/");
         if (mime == "video/mp4") {
-            videos = videos || [];
+            videos = [];
             console.log("Adding video:", file);
             videos.push(genVideoSource(file));
         } else if (mime == "text/vtt") {
-            tracks = tracks || [];
+            tracks = [];
             console.log("Adding subtitle:", file);
             tracks.push(genTrackSource(file));
         }
+    }
+
+    if (videos.length > 0) {
+        videoFileDisplay.innerHTML = videos[0].name;
+    } else {
+        videoFileDisplay.innerHTML = "No video chosen.";
+    }
+
+    if (tracks.length > 0) {
+        subtitleFileDisplay.innerHTML = tracks[0].name;
+    } else {
+        subtitleFileDisplay.innerHTML = "No subtitle chosen.";
     }
 
     updateSource({
         type: "video",
         tracks,
         sources: videos
-    })
+    });
 }
 
 filename.addEventListener("change", e => updateFromFiles(e.target.files || []));
@@ -113,14 +130,18 @@ setPlayerListener("play", e => {
 });
 
 setPlayerListener("pause", e => {
+    console.log("Pause was triggered.")
     trigger("pause", {
         willBePlaying: false
     });
 });
 
 setPlayerListener("seeked", e => {
-    abortNext.pause = true;
-    playerjs.pause();
+    console.log("Next pause will be aborted due to seek.")
+    if (playerjs.playing == true) {
+        abortNext.pause = true;
+        playerjs.pause();
+    }
     trigger("seeked", {
         seektime: playerjs.currentTime,
         senttime: Date.now() / 1000,
@@ -132,16 +153,39 @@ setPlayerListener("canplay", e => {
     console.log("CANPLAY");
 }, true);
 
-setPlayerListener("timeupdate", _.throttle(e => {
-    console.log("TIMEUPDATE");
+setInterval(_ => {
     trigger("heartbeat", {
-        currentTime: playerjs.currentTime
+        currentTime: playerjs.currentTime,
+        isPlaying: playerjs.playing,
+        nick: nick.value || "Anon",
     }, 'heartbeat');
-}, 1000), true);
+}, 1000);
+
+var mean = xs => xs.reduce((x,y) => x + y, 0) / xs.length
 
 var seenEvents = new Set();
 conn.on('heartreply', e => {
-    console.log('heartreply', e);
+    // console.log('heartreply', e);
+    let hearts = Object.values(e).filter(x => x != null && typeof x == 'object');
+    let curr = Date.now() / 1000;
+    for (heart of hearts) {
+        let syncedtime = heart.senttime - heart.currentTime;
+        if (heart.isPlaying == false) {
+            syncedtime += curr - heart.senttime;
+        }
+        heart.syncedtime = syncedtime;
+    }
+    let meanSyncedtime = mean(hearts.map(x => x.syncedtime));
+    heartbeat.innerHTML = `
+<tr>
+    <th>Nick</th>
+    <th>Time Lag</th>
+</tr>
+`;
+    for (var heart of hearts) {
+        let delta = heart.syncedtime - meanSyncedtime;
+        heartbeat.innerHTML += `<tr><td>${heart.nick || heart.uid}</td><td>${Math.round((delta + Number.EPSILON) * 100) / 100}</td></tr>`;
+    }
 });
 conn.on('controlsdown', e => {
     console.log("Event", e);
@@ -167,12 +211,18 @@ conn.on('controlsdown', e => {
             break;
         case 'pause':
             abortNext.seeked = true;
-            abortNext.pause = true;
-            playerjs.pause();
+            if (playerjs.playing == true) {
+                abortNext.pause = true;
+                playerjs.pause();
+            }
             playerjs.currentTime = adjustedTime;
             break;
         case 'seeked':
             abortNext.seeked = true;
+            if (playerjs.playing == true) {
+                abortNext.pause = true;
+                playerjs.pause();
+            }
             playerjs.currentTime = adjustedTime;
             break;
     }

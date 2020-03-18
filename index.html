@@ -2,23 +2,36 @@
     <head>
         <title>HTML SyncPlayer</title>
         <link href="https://unpkg.com/plyr@3/dist/plyr.css" rel="stylesheet"></link>
-        <style>
-// #player--container {
-//     flex: 0 1 auto;
-// }
-// body {
-//     display: flex;
-//     flex-direction: column;
-// }
-#player--container {
-    height: 80%;
-}
-        </style>
+        <link href="/style.css" rel="stylesheet"></link>
     </head>
     <body>
-        <!--<h2 id="header">&lt;No File Selected&gt;</h2>-->
-        <!--<label for="filename">Choose subtitle and video files...</label>-->
-        <input id="filename" name="filename" type="file" />
+        <div id="interface--container">
+            <div id="settings">
+                <label for="filename">
+                    <div id="addFile">
+                        Add video/sub file...
+                    </div>
+                </label>
+                <input id="filename" hidden name="filename" type="file" />
+                <div class="sectionSplit"></div>
+                <b>Video File</b><br/>
+                <div id="videoFileDisplay">No video chosen.</div>
+                <div class="sectionSplit"></div>
+                <b>Subtitle File</b><br/>
+                <div id="subtitleFileDisplay">No subtitle chosen.</div>
+                <div class="sectionSplit"></div>
+                <b>Nickname</b><br/>
+                <input id="nick" name="nick" type="text" placeholder="Anon"/>
+            </div>
+            <div id="heartbeat">
+                <table id="heartbeat--table">
+                    <tr>
+                        <th>Nick</th>
+                        <th>Time Lag</th>
+                    </tr>
+                </table>
+            </div>
+        </div>
         <div id="player--container">
             <video id="player" controls></video>
         </div>
