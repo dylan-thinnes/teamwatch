@@ -2,6 +2,7 @@
     flex: 1 1 auto;
     width: 0px;
 }
+
 #interface--container {
     flex: 0 0 auto;
     width: 200px;
@@ -15,6 +16,29 @@
 #interface--container > #heartbeat {
     height: 50%;
 }
+
+#heartbeat--table {
+    width: 100%;
+    text-align: left;
+    display: flex;
+}
+#heartbeat--table--nicks {
+    width: 10ch;
+    flex: 0 0 auto;
+}
+#heartbeat--table--lags {
+    flex: 1 1 auto;
+}
+#heartbeat--table--lags > .bad {
+    background-color: #faa;
+}
+#heartbeat--table--lags > .ok {
+    background-color: #ffa;
+}
+#heartbeat--table--lags > .good {
+    background-color: #afa;
+}
+
 body {
     display: flex;
     flex-direction: row-reverse;
@@ -22,26 +46,24 @@ body {
     margin: 0;
     height: 100vh;
 }
-#addFile {
+
+.button {
     margin: 0.1em;
     padding: 0.2em;
     background-color: #8a8;
     border-radius: 0.2em;
     cursor: pointer !important;
 }
-#addFile:hover {
+.button:hover {
     background-color: #8c8;
 }
-#addFile:active {
+.button:active {
     background-color: #8e8;
 }
+
 .sectionSplit {
     background-color: lightgrey;
     height: 1px;
     width: 100%;
     margin: 5px 0;
 }
-// #player--container {
-//     height: 80%;
-// }
-

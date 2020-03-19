@@ -4,9 +4,12 @@ var filename = document.getElementById("filename");
 var subs = document.getElementById("subs");
 var player = document.getElementById("player");
 var heartbeat = document.getElementById("heartbeat--table");
+var heartbeatNicks = document.getElementById("heartbeat--table--nicks");
+var heartbeatLags = document.getElementById("heartbeat--table--lags");
 var nick = document.getElementById("nick");
 var videoFileDisplay = document.getElementById("videoFileDisplay");
 var subtitleFileDisplay = document.getElementById("subtitleFileDisplay");
+var synchronize = document.getElementById("synchronize");
 
 // Initialize timesync primitives
 var ts = timesync.create({
@@ -22,60 +25,14 @@ window.playerjs;
 
 // Initialize the global "source" for the player
 var source = {};
-var updateSource = (newsrc) => {
+function updateSource (newsrc) {
     console.log("Updating source: ", source, newsrc);
     source = { ...source, ...newsrc };
     playerjs.source = source;
-};
-updateSource({
-    type: "video",
-    sources: [],
-    tracks: [],
-});
 
-// Functions for generating sources, both for subtitles and videos
-var genVideoSource = file => {
-    if (file instanceof File) {
-        src = URL.createObjectURL(file);
-    } else if (typeof file == "string") {
-        src = file;
-    }
-
-    return { src, name: file.name };
-}
-
-var genTrackSource = file => {
-    let track = {
-        kind: "captions",
-        src: URL.createObjectURL(file),
-        srclang: "en",
-        label: "English",
-        default: true,
-        name: file.name,
-    }
-
-    return track;
-}
-
-// Function to update video sources/tracks from list of files
-var updateFromFiles = files => {
-    var { tracks, sources: videos } = source;
-
-    for (file of files) {
-        if (!(file instanceof File)) continue;
-
-        var mime = file.type;
-        var [type, subtype] = mime.split("/");
-        if (mime == "video/mp4") {
-            videos = [];
-            console.log("Adding video:", file);
-            videos.push(genVideoSource(file));
-        } else if (mime == "text/vtt") {
-            tracks = [];
-            console.log("Adding subtitle:", file);
-            tracks.push(genTrackSource(file));
-        }
-    }
+    var { sources: videos, tracks } = source;
+    videos = videos || [];
+    tracks = tracks || [];
 
     if (videos.length > 0) {
         videoFileDisplay.innerHTML = videos[0].name;
@@ -89,20 +46,160 @@ var updateFromFiles = files => {
         subtitleFileDisplay.innerHTML = "No subtitle chosen.";
     }
 
-    updateSource({
-        type: "video",
-        tracks,
-        sources: videos
-    });
+};
+updateSource({
+    type: "video",
+    sources: [],
+    tracks: [],
+});
+
+// Functions for generating sources, both for subtitles and videos
+function genVideoSource (file) {
+    if (file instanceof File) {
+        src = URL.createObjectURL(file);
+    } else if (typeof file == "string") {
+        src = file;
+    }
+
+    return { src, name: file.name };
 }
 
+function genTrackSource (file) {
+    let track = {
+        kind: "captions",
+        src: URL.createObjectURL(file),
+        srclang: "en",
+        label: "English",
+        default: true,
+        name: file.name,
+    }
+
+    return track;
+}
+
+// Function to update video sources/tracks from list of files
+function updateFromFiles (files) {
+    for (file of files) {
+        if (!(file instanceof File)) continue;
+
+        var mime = file.type;
+        console.log(file, mime)
+        if (mime == "video/mp4") {
+            videos = [];
+            console.log("Adding video:", file);
+            addVideoSource(genVideoSource(file));
+        } else if (mime == "text/vtt") {
+            console.log("Adding subtitle:", file);
+            addTrackSource(genTrackSource(file));
+        } else if (mime == "application/x-subrip") {
+            console.log("Adding subtitle:", file);
+            srt2webvttFile(file, (blob) => {
+                addTrackSource(genTrackSource(blob));
+            });
+        }
+    }
+}
+
+function addVideoSource (videoSource) {
+    var { sources } = source;
+    sources = [videoSource];
+    updateSource({ sources });
+}
+
+function addTrackSource (trackSource) {
+    var { tracks } = source;
+    tracks.push(trackSource);
+    updateSource({ tracks });
+}
+
+function srt2webvtt (data) {
+    // remove dos newlines
+    var srt = data.replace(/\r+/g, '');
+    // trim white space start and end
+    srt = srt.replace(/^\s+|\s+$/g, '');
+
+    // get cues
+    var cuelist = srt.split('\n\n');
+    var result = "";
+
+    if (cuelist.length > 0) {
+        result += "WEBVTT\n\n";
+        for (var i = 0; i < cuelist.length; i=i+1) {
+            result += convertSrtCue(cuelist[i]);
+        }
+    }
+
+    return result;
+}
+
+function convertSrtCue(caption) {
+    // remove all html tags for security reasons
+    //srt = srt.replace(/<[a-zA-Z\/][^>]*>/g, '');
+
+    var cue = "";
+    var s = caption.split(/\n/);
+
+    // concatenate muilt-line string separated in array into one
+    while (s.length > 3) {
+        for (var i = 3; i < s.length; i++) {
+            s[2] += "\n" + s[i]
+        }
+        s.splice(3, s.length - 3);
+    }
+
+    var line = 0;
+
+    // detect identifier
+    if (!s[0].match(/\d+:\d+:\d+/) && s[1].match(/\d+:\d+:\d+/)) {
+        cue += s[0].match(/\w+/) + "\n";
+        line += 1;
+    }
+
+    // get time strings
+    if (s[line].match(/\d+:\d+:\d+/)) {
+        // convert time string
+        var m = s[1].match(/(\d+):(\d+):(\d+)(?:,(\d+))?\s*--?>\s*(\d+):(\d+):(\d+)(?:,(\d+))?/);
+        if (m) {
+            cue += m[1]+":"+m[2]+":"+m[3]+"."+m[4]+" --> "+m[5]+":"+m[6]+":"+m[7]+"."+m[8]+"\n";
+            line += 1;
+        } else {
+            // Unrecognized timestring
+            return "";
+        }
+    } else {
+        // file format error or comment lines
+        return "";
+    }
+
+    // get cue text
+    if (s[line]) {
+        cue += s[line] + "\n\n";
+    }
+
+    return cue;
+}
+
+function srt2webvttFile (file, callback) {
+    console.log("Called.")
+    var r = new FileReader();
+    r.onload = () => {
+        var srt = r.result;
+        var vtt = srt2webvtt(srt);
+        var res = new Blob([vtt], { type: 'text/vtt' });
+        res.name = file.name;
+        callback(res);
+    }
+    r.readAsText(file);
+}
+
+// Track file updates
 filename.addEventListener("change", e => updateFromFiles(e.target.files || []));
 
-// Initialize connection
+// Initialize websocket connection
 var conn = io(`http://${window.location.hostname}:3000`);
 
-// Trigger a controls event on the connection
-var trigger = (type, data, channel) => {
+// Function for triggering a player events on the connection
+function trigger (type, data, channel) {
     var channel = channel || 'controlsup';
     var id = Math.random();
     seenEvents.add(id);
@@ -116,7 +213,7 @@ var trigger = (type, data, channel) => {
 // Event listeners for the player
 var abortNext = {};
 
-var setPlayerListener = (event, handler, nonotify) => {
+function setPlayerListener (event, handler, nonotify) {
     playerjs.on(event, e => {
         if (abortNext[event] == true) {
             console.log(`ABORTED: ${event}`, e);
@@ -134,9 +231,6 @@ var setPlayerListener = (event, handler, nonotify) => {
 let countdownActive = false;
 
 setPlayerListener("play", e => {
-    // trigger("play", {
-    //     willBePlaying: true
-    // });
     if (countdownActive == true) return;
     trigger('countdown', {
         targetSeektime: playerjs.currentTime,
@@ -165,10 +259,6 @@ setPlayerListener("seeked", e => {
     });
 });
 
-setPlayerListener("canplay", e => {
-    console.log("CANPLAY");
-}, true);
-
 setInterval(_ => {
     trigger("heartbeat", {
         currentTime: playerjs.currentTime,
@@ -181,31 +271,59 @@ var mean = xs => xs.reduce((x,y) => x + y, 0) / xs.length
 
 var seenEvents = new Set();
 
+var lastHeartreply = null;
+heartreplySyncedtime = (heart) => {
+    let curr = now() / 1000;
+    let syncedtime = heart.senttime - heart.currentTime;
+    if (heart.isPlaying == false) {
+        syncedtime += curr - heart.senttime;
+    }
+    return syncedtime;
+}
+
 conn.on('heartreply', e => {
     // console.log('heartreply', e);
     let hearts = Object.values(e).filter(x => x != null && typeof x == 'object');
     let curr = now() / 1000;
     for (heart of hearts) {
-        let syncedtime = heart.senttime - heart.currentTime;
-        if (heart.isPlaying == false) {
-            syncedtime += curr - heart.senttime;
-        }
-        heart.syncedtime = syncedtime;
+        heart.syncedtime = heartreplySyncedtime(heart);
     }
-    let meanSyncedtime = mean(hearts.map(x => x.syncedtime));
-    heartbeat.innerHTML = `
-<tr>
-    <th>Nick</th>
-    <th>Time Lag</th>
-</tr>
-`;
+    e.meanSyncedtime = mean(hearts.map(x => x.syncedtime));
+    heartbeatNicks.innerHTML = `<div><b>Nick</b></div>`;
+    heartbeatLags.innerHTML  = `<div><b>Time Lag</b></div>`;
     for (var heart of hearts) {
-        let delta = heart.syncedtime - meanSyncedtime;
-        heartbeat.innerHTML += `<tr><td>${heart.nick || heart.uid}</td><td>${Math.round((delta + Number.EPSILON) * 100) / 100}</td></tr>`;
+        let delta = heart.syncedtime - e.meanSyncedtime;
+        heart.delta = delta;
+        heartbeatNicks.innerHTML += `<div>${heart.nick || 'Anon'}${heart.uid == e.you ? ' (You)' : ''}</div>`
+        lagClass = Math.abs(delta) > 0.5 ? 'bad' : Math.abs(delta) > 0.1 ? 'ok' : 'good';
+        heartbeatLags.innerHTML  += `<div class='${lagClass}'>
+                                         ${Math.round((delta + Number.EPSILON) * 100) / 100}
+                                     </div>`;
     }
+    lastHeartreply = e;
 });
 
-conn.on('countdown', e => {
+var id = x => {
+    console.log(x);
+    return x;
+}
+
+// Function for synchronization to last heartreply after joining
+function runSynchronize () {
+    console.log("synchronize");
+    let e = lastHeartreply;
+    let hearts = Object.values(e).filter(x => x != null && typeof x == 'object' && x.uid != e.you);
+    let meanSyncedtime = mean(hearts.map(x => heartreplySyncedtime(x)));
+    let meanSeektime = now() / 1000 - meanSyncedtime;
+    fireAtTarget({
+        target: now() + 5000,
+        targetSeektime: meanSeektime + 5,
+    });
+}
+
+synchronize.addEventListener("click", runSynchronize);
+
+function fireAtTarget (e) {
     let curr = now();
     countdownActive = true;
     if (e.target > curr) {
@@ -226,7 +344,9 @@ conn.on('countdown', e => {
         playerjs.play();
         countdownActive = false;
     }
-});
+}
+
+conn.on('countdown', fireAtTarget);
 
 conn.on('controlsdown', e => {
     console.log("Event", e);

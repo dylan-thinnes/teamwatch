@@ -8,7 +8,7 @@
         <div id="interface--container">
             <div id="settings">
                 <label for="filename">
-                    <div id="addFile">
+                    <div id="addFile" class="button">
                         Add video/sub file...
                     </div>
                 </label>
@@ -24,12 +24,11 @@
                 <input id="nick" name="nick" type="text" placeholder="Anon"/>
             </div>
             <div id="heartbeat">
-                <table id="heartbeat--table">
-                    <tr>
-                        <th>Nick</th>
-                        <th>Time Lag</th>
-                    </tr>
-                </table>
+                <div id="synchronize" class="button">Synchronize</div>
+                <div id="heartbeat--table">
+                    <div id="heartbeat--table--nicks"></div>
+                    <div id="heartbeat--table--lags"></div>
+                </div>
             </div>
         </div>
         <div id="player--container">
