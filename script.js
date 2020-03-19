@@ -10,6 +10,7 @@ var nick = document.getElementById("nick");
 var videoFileDisplay = document.getElementById("videoFileDisplay");
 var subtitleFileDisplay = document.getElementById("subtitleFileDisplay");
 var synchronize = document.getElementById("synchronize");
+var timer = document.getElementById("player--underlay--timer");
 
 // Initialize timesync primitives
 var ts = timesync.create({
@@ -330,6 +331,22 @@ function fireAtTarget (e) {
         let diff = e.target - curr;
         abortNext.seeked = true;
         playerjs.currentTime = e.targetSeektime;
+
+
+        timer.className = "show";
+        let cancelId;
+        let timerDiff = diff / 1000;
+        cancelId = setInterval(() => {
+            if (timerDiff <= 0.1) {
+                timer.className = null;
+                clearInterval(cancelId);
+            }
+            var text = Math.floor((timerDiff + Number.EPSILON) * 10) / 10
+            text = text.toString() + (text == Math.floor(text) ? ".0" : "");
+            timer.innerHTML = text;
+            timerDiff -= 0.1;
+        }, 100);
+
         setTimeout(() => {
             abortNext.play = true;
             playerjs.play();
