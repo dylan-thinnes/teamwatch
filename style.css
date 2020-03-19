@@ -101,3 +101,7 @@ body {
 #player--underlay--timer.show {
     display: flex;
 }
+
+#synchronize {
+    display: none;
+}
