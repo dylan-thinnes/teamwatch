@@ -55,14 +55,22 @@ updateSource({
 });
 
 // Functions for generating sources, both for subtitles and videos
-function genVideoSource (file) {
+function genVideoSource (file, defaultName) {
     if (file instanceof File) {
-        src = URL.createObjectURL(file);
+        var src = URL.createObjectURL(file);
+        var name = file.name;
     } else if (typeof file == "string") {
-        src = file;
+        var src = file;
+        var name = defaultName || "Untitled";
     }
 
-    return { src, name: file.name };
+    return { src, name };
+}
+
+function genYoutubeSource (...args) {
+    var res = genVideoSource(...args);
+    res.provider = "youtube";
+    return res;
 }
 
 function genTrackSource (file) {
